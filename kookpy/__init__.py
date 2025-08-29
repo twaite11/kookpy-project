@@ -1,209 +1,194 @@
-import requests
 import pandas as pd
+import requests
 import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
+from datetime import datetime
 
-# Set up global variables for the API URL and relevant parameters.
-# The Open-Meteo Marine Weather API is specifically designed for ocean data.
-# These are open source non-commercial use API's!!!
-MARINE_API_URL = "https://marine-api.open-meteo.com/v1/marine"
-WEATHER_API_URL = "https://api.open-meteo.com/v1/forecast"
-GEOCODING_API_URL = "https://geocoding-api.open-meteo.com/v1/search"
-
-# Use these variables for a comprehensive surf forecast.
-# The marine API provides swell data.
-# Two API's needed (the marine API doesn't have the supporting wind data..)
-MARINE_VARIABLES = [
-    "swell_wave_height",
-    "swell_wave_period",
-    "wave_direction",
-]
-
-# The standard weather API provides wind data.
-WEATHER_VARIABLES = [
-    "wind_speed_10m",
-    "wind_direction_10m",
-]
-
-
-def get_surf_forecast_by_name(beach_name: str) -> pd.DataFrame:
+def geocode_location(location_name):
     """
-    Fetches surf forecast data for a given beach name.
-
-    This function first uses the Open-Meteo Geocoding API to find the
-    geographical coordinates of the beach. It then calls both the marine and
-    standard weather APIs to get the combined forecast data.
+    Finds the geographical coordinates (latitude and longitude) for a given location name.
 
     Args:
-        beach_name (str): The name of the beach (e.g., "Mavericks").
+        location_name (str): The name of the location (e.g., "Laguna Beach").
 
     Returns:
-        pd.DataFrame: A DataFrame containing the fetched hourly data.
-                      Returns an empty DataFrame if the beach is not found or
-                      the request fails.
+        dict: A dictionary containing the latitude and longitude, or None if not found.
     """
+    GEOCODING_API_URL = "https://geocoding-api.open-meteo.com/v1/search"
     try:
-        # Step 1: Find coordinates using the Geocoding API
-        geo_params = {"name": beach_name, "count": 1, "language": "en"}
-        geo_response = requests.get(GEOCODING_API_URL, params=geo_params)
-        geo_response.raise_for_status()
-        geo_data = geo_response.json()
-
-        if "results" not in geo_data or not geo_data["results"]:
-            print(f"Error: Could not find coordinates for '{beach_name}'.")
-            return pd.DataFrame()
-
-        location_data = geo_data["results"][0]
-        latitude = location_data["latitude"]
-        longitude = location_data["longitude"]
-        print(f"Found coordinates for {beach_name}: Latitude {latitude}, Longitude {longitude}")
-
-        # Step 2: Fetch marine data using the found coordinates
-        marine_data = fetch_data(MARINE_API_URL, latitude, longitude, MARINE_VARIABLES)
-
-        # Step 3: Fetch wind data using the found coordinates
-        wind_data = fetch_data(WEATHER_API_URL, latitude, longitude, WEATHER_VARIABLES)
-
-        # Step 4: Merge the dataframes. This is crucial for plotting.
-        if marine_data.empty or wind_data.empty:
-            return pd.DataFrame()
-
-        # Ensure the dataframes are aligned on their time index before merging
-        combined_df = marine_data.join(wind_data)
-
-        return combined_df
-
+        response = requests.get(GEOCODING_API_URL, params={'name': location_name, 'count': 1})
+        response.raise_for_status()
+        data = response.json()
+        if data and 'results' in data and data['results']:
+            location = data['results'][0]
+            return {
+                'latitude': location['latitude'],
+                'longitude': location['longitude']
+            }
     except requests.exceptions.RequestException as e:
-        print(f"Error fetching geocoding data: {e}")
-        return pd.DataFrame()
+        print(f"Error during geocoding API call: {e}")
+    return None
 
-def fetch_data(api_url: str, latitude: float, longitude: float, variables: list) -> pd.DataFrame:
+def fetch_marine_data(latitude, longitude, start_date, end_date):
     """
-    A generic function to fetch weather data from any Open-Meteo API.
-
-    This function makes an HTTP GET request to the API URL, retrieves the JSON
-    response, and converts it into a pandas DataFrame.
+    Fetches marine weather data from the Open-Meteo Marine API.
 
     Args:
-        api_url (str): The URL of the Open-Meteo API.
-        latitude (float): The geographical latitude of the location.
-        longitude (float): The geographical longitude of the location.
-        variables (list): A list of weather variables to request.
+        latitude (float): The latitude of the location.
+        longitude (float): The longitude of the location.
+        start_date (str): The start date in 'YYYY-MM-DD' format.
+        end_date (str): The end date in 'YYYY-MM-DD' format.
 
     Returns:
-        pd.DataFrame: A DataFrame containing the fetched hourly data.
-                      Returns an empty DataFrame if the request fails.
+        pd.DataFrame: A DataFrame with the marine weather data.
     """
+    MARINE_API_URL = "https://marine-api.open-meteo.com/v1/marine"
+    marine_variables = [
+        "swell_wave_height", "swell_wave_period", "swell_wave_direction",
+        "wave_height", "wave_period", "wave_direction",
+        "wind_wave_height", "wind_wave_period", "wind_wave_direction"
+    ]
     params = {
         "latitude": latitude,
         "longitude": longitude,
-        "hourly": ",".join(variables),
-        "timezone": "auto",
+        "hourly": ",".join(marine_variables),
+        "start_date": start_date,
+        "end_date": end_date,
+        "timezone": "auto"
     }
-
     try:
-        response = requests.get(api_url, params=params)
-        response.raise_for_status()  # Raises an HTTPError for bad responses (4xx or 5xx)
+        response = requests.get(MARINE_API_URL, params=params)
+        response.raise_for_status()
         data = response.json()
-
-        if "hourly" not in data:
-            print("Error: 'hourly' data not found in the API response.")
-            return pd.DataFrame()
-
-        hourly_data = data["hourly"]
-        df = pd.DataFrame(hourly_data)
-
-        # Convert the 'time' column to datetime objects for proper plotting.
+        df = pd.DataFrame(data['hourly'])
         df['time'] = pd.to_datetime(df['time'])
-        df = df.set_index('time')
-
         return df
     except requests.exceptions.RequestException as e:
-        print(f"Error fetching data from {api_url}: {e}")
-        return pd.DataFrame()
+        print(f"Error during marine API call: {e}")
+    return pd.DataFrame()
 
-
-def plot_surf_data(df: pd.DataFrame, location_name: str):
+def fetch_wind_data(latitude, longitude, start_date, end_date):
     """
-    Plots surf data including swell and wind metrics.
-
-    This function creates a multi-panel plot to visualize the key surf
-    forecasting metrics over time. Matplotlib is used for the visualization.
+    Fetches wind data from the appropriate Open-Meteo API (forecast or historical).
 
     Args:
-        df (pd.DataFrame): DataFrame containing the swell and wind data.
+        latitude (float): The latitude of the location.
+        longitude (float): The longitude of the location.
+        start_date (str): The start date in 'YYYY-MM-DD' format.
+        end_date (str): The end date in 'YYYY-MM-DD' format.
+
+    Returns:
+        pd.DataFrame: A DataFrame with the wind data.
+    """
+    # Determine the correct API endpoint based on the date range.
+    today_str = datetime.now().strftime('%Y-%m-%d')
+    if start_date < today_str:
+        # Use the historical API for past dates
+        API_URL = "https://archive-api.open-meteo.com/v1/archive"
+    else:
+        # Use the forecast API for today and future dates
+        API_URL = "https://api.open-meteo.com/v1/forecast"
+
+    wind_variables = ["wind_speed_10m", "wind_direction_10m"]
+    params = {
+        "latitude": latitude,
+        "longitude": longitude,
+        "hourly": ",".join(wind_variables),
+        "start_date": start_date,
+        "end_date": end_date,
+        "timezone": "auto"
+    }
+    try:
+        response = requests.get(API_URL, params=params)
+        response.raise_for_status()
+        data = response.json()
+        df = pd.DataFrame(data['hourly'])
+        df['time'] = pd.to_datetime(df['time'])
+        return df
+    except requests.exceptions.RequestException as e:
+        print(f"Error during wind API call: {e}")
+    return pd.DataFrame()
+
+def plot_surf_data(df, location_name):
+    """
+    Creates a plot of swell and wind data.
+
+    Args:
+        df (pd.DataFrame): DataFrame containing the weather data.
         location_name (str): The name of the location for the plot title.
     """
     if df.empty:
         print("No data to plot.")
         return
 
-    # Create a figure with two subplots for swell and wind data
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10), sharex=True)
+    plt.style.use('dark_background')
+    fig, ax1 = plt.subplots(figsize=(12, 6))
 
-    # --- Swell Data Plot ---
-    # Plot swell wave height
-    ax1.plot(df.index, df['swell_wave_height'], marker='o', linestyle='-', color='b', label='Swell Wave Height')
-    ax1.set_title(f"Surf Forecast for {location_name}")
-    ax1.set_ylabel("Swell Wave Height (m) / Swell Wave Period (s)")
-    ax1.grid(True)
-    ax1.fill_between(df.index, df['swell_wave_height'], color='b', alpha=0.1)
+    # Plot swell data on the primary y-axis
+    ax1.plot(df['time'], df['swell_wave_height'], color='#FF5733', label='Swell Height (m)', marker='o')
+    ax1.set_xlabel('Date')
+    ax1.set_ylabel('Swell Height (m)', color='#FF5733')
+    ax1.tick_params(axis='y', labelcolor='#FF5733')
+    ax1.set_title(f'Swell and Wind Forecast for {location_name}', color='white')
+    ax1.grid(True, which='both', linestyle='--', linewidth=0.5, alpha=0.5)
 
-    # Add swell wave period to the same plot
-    ax1.plot(df.index, df['swell_wave_period'], marker='x', linestyle='--', color='g', label='Swell Wave Period')
-    ax1.legend(loc='upper left')
+    # Create a secondary y-axis for wind data
+    ax2 = ax1.twinx()
+    ax2.plot(df['time'], df['wind_speed_10m'], color='#33FFC1', label='Wind Speed (km/h)', linestyle='--', marker='x')
+    ax2.set_ylabel('Wind Speed (km/h)', color='#33FFC1')
+    ax2.tick_params(axis='y', labelcolor='#33FFC1')
 
-    # Add swell wave direction as text annotations
-    for i, txt in enumerate(df['wave_direction']):
-        if i % 8 == 0:  # Annotate every 8th data point (roughly every 8 hours)
-            ax1.annotate(
-                f"{int(txt)}°",
-                (mdates.date2num(df.index[i]), df['swell_wave_height'].iloc[i]),
-                textcoords="offset points",
-                xytext=(0, 10),
-                ha='center',
-                fontsize=8,
-                color='r',
-                fontweight='bold'
-            )
+    # Add wind direction to the plot using annotations
+    for i, row in df.iterrows():
+        plt.text(
+            row['time'],
+            row['wind_speed_10m'],
+            f"←",
+            fontsize=10,
+            color='#33FFC1',
+            ha='center',
+            va='bottom',
+            rotation=-row['wind_direction_10m']
+        )
 
-    # --- Wind Data Plot ---
-    # Plot wind speed
-    ax2.plot(df.index, df['wind_speed_10m'], marker='o', linestyle='-', color='purple', label='Wind Speed')
-    ax2.set_ylabel("Wind Speed (km/h)")
-    ax2.set_xlabel("Date and Time")
-    ax2.grid(True)
-    ax2.fill_between(df.index, df['wind_speed_10m'], color='purple', alpha=0.1)
-
-    # Add wind direction as text annotations
-    for i, txt in enumerate(df['wind_direction_10m']):
-        if i % 8 == 0:
-            ax2.annotate(
-                f"{int(txt)}°",
-                (mdates.date2num(df.index[i]), df['wind_speed_10m'].iloc[i]),
-                textcoords="offset points",
-                xytext=(0, 10),
-                ha='center',
-                fontsize=8,
-                color='red',
-                fontweight='bold'
-            )
-
-    # Format the x-axis for better date readability
-    ax2.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d %H:%M'))
-    plt.xticks(rotation=45)
-    plt.tight_layout()
+    fig.tight_layout()
+    plt.legend(loc='upper left')
     plt.show()
 
-if __name__ == "__main__":
-    # --- Example Usage for a beach name ---
-    location_name = "Laguna Beach"
+def get_surf_forecast_by_name(location_name):
+    """
+    Provides a surf forecast for a given beach name by combining geocoding and weather APIs.
 
+    Args:
+        location_name (str): The name of the beach or location.
+
+    Returns:
+        pd.DataFrame: A DataFrame with combined marine and wind data, or an empty DataFrame on failure.
+    """
     print(f"Fetching surf data for {location_name}...")
-    surf_data = get_surf_forecast_by_name(location_name)
+    coords = geocode_location(location_name)
+    if not coords:
+        print(f"Could not find coordinates for {location_name}.")
+        return pd.DataFrame()
 
-    if not surf_data.empty:
-        print("Data fetched successfully. Plotting now.")
-        plot_surf_data(surf_data, location_name)
-    else:
+    print(f"Found coordinates for {location_name}: Latitude {coords['latitude']}, Longitude {coords['longitude']}")
+
+    today = datetime.now().strftime('%Y-%m-%d')
+
+    marine_data = fetch_marine_data(coords['latitude'], coords['longitude'], today, today)
+    wind_data = fetch_wind_data(coords['latitude'], coords['longitude'], today, today)
+
+    if marine_data.empty and wind_data.empty:
         print("Failed to fetch data. Please check the beach name or network connection.")
+        return pd.DataFrame()
+
+    # Merge the two dataframes on the 'time' column
+    combined_df = pd.merge(marine_data, wind_data, on='time', how='outer')
+    return combined_df
+
+if __name__ == '__main__':
+    # Example usage:
+    beach_name = "Laguna Beach"
+    surf_forecast = get_surf_forecast_by_name(beach_name)
+
+    if not surf_forecast.empty:
+        plot_surf_data(surf_forecast, beach_name)
