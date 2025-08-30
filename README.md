@@ -28,41 +28,45 @@ You can install these using pip:
 `pip install requests pandas matplotlib`
 
 Usage
-## 1. Getting a Surf Forecast by Beach Name
-Use the get_surf_forecast_by_name function to get a combined forecast for a specific beach.
+## 1. Collect Historical Data 
+You need historical data to train the prediction model. Use the data_collector.py script to fetch data from the past. You can customize the location and date range within the script.
 
-from kookpy import get_surf_forecast_by_name
+### Run the data collector and select your beach 
+`python data_collector.py`
 
-### Fetch the data for a well-known surf spot
-`surf_data = get_surf_forecast_by_name("Laguna Beach")`
-
-`if not surf_data.empty:
-    print(surf_data.head())`
-
-## 2. Plotting the Data
-Once you have the data in a Pandas DataFrame, you can use the plot_surf_data function to create a visualization.
-
-from kookpy import plot_surf_data Assuming `surf_data` has already been fetched
-plot_surf_data(surf_data, "Laguna Beach")
-
-This will generate a two-panel plot showing swell wave height and period in the top panel, and wind speed and direction in the bottom panel.
-
-## 3. As a Foundation for Machine Learning
-The get_surf_forecast_by_name function returns a Pandas DataFrame, which is the standard input format for most data science libraries. You can use this data to train a machine learning model.
-
-`import pandas as pd
-from kookpy import get_surf_forecast_by_name`
-
-## Fetch historical data (example)
-
-`historical_data = get_surf_forecast_by_name(...)`
-
-## Example of preparing data for a model
-`features = historical_data[['swell_wave_height', 'swell_wave_period', 'wind_speed_10m', 'wind_direction_10m']]
-target = historical_data['surf_quality_score'] # This would be your target variable`
+This will write over/create `historical_surf_data.csv` file in your project directory
 
 
-Contributing
+## 2. Train the Prediction Model 
+The `model_trainer.py` script will train a TensorFlow model on your collected data. It uses a heuristic to create a `wave_quality_score` based on swell height, period, and wind speed.
+
+`python model_trainer.py`
+
+After running this script, three files will be created in your directory: `wave_prediction_model.keras`, `scaler_X.pkl`, and `scaler_y.pkl`. These files are essential for making predictions.
+## 3. Make Predictions and Visualize
+The `main.py` script is your primary application. It fetches the latest forecast, uses your trained model to predict a surf quality score for each time point, and visualizes the results.
+
+`python main.py`
+
+### The script will generate two graphs:
+a. **Swell Wave Height:** A line graph showing the swell height in feet, with color-coded points representing the predicted wave quality score (red=bad, green=good).
+
+b. **Wind Speed:** A separate line graph showing the forecasted wind speed in km/h.
+## Directory Structure
+
+For everything to work correctly, your project should have the following structure:
+
+`kookpy-project/
+├── kookpy/
+│   ├── __init__.py
+├── data_collector.py
+├── model_trainer.py
+├── main.py
+└── README.md`
+
+Contact
+For questions or contributions, please contact tyco711@gmail.com or open an issue on the GitHub repository.
+
 Contributions are welcome! If you have ideas for new features, improvements, or bug fixes, please feel free to open an issue or submit a pull request on the GitHub repository.
 
 License
