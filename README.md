@@ -56,7 +56,7 @@ b. **Wind Speed:** A separate line graph showing the forecasted wind speed in km
 
 For everything to work correctly, your project should have the following structure:
 
-`kookpy-project/
+`kookpy-project/                                                         
 ├── kookpy/
 │   ├── __init__.py
 ├── data_collector.py
