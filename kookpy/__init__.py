@@ -3,8 +3,9 @@ import pandas as pd
 import tensorflow as tf
 import joblib
 from datetime import datetime, timedelta
-import time
 import os
+import numpy as np
+import matplotlib.pyplot as plt
 
 # Base URLs for the Open-Meteo APIs
 GEOCODING_API_URL = "https://geocoding-api.open-meteo.com/v1/search"
@@ -38,7 +39,6 @@ def geocode_location(location_name):
         return None
     return None
 
-
 def fetch_marine_data(latitude, longitude, start_date, end_date):
     """
     Fetches marine weather data (swell and waves) from Open-Meteo.
@@ -56,7 +56,7 @@ def fetch_marine_data(latitude, longitude, start_date, end_date):
     params = {
         "latitude": latitude,
         "longitude": longitude,
-        "hourly": "swell_wave_height,swell_wave_period,wave_direction",
+        "hourly": "swell_wave_height,swell_wave_period,wave_direction,sea_level_height_msl",
         "start_date": start_date,
         "end_date": end_date
     }
@@ -73,7 +73,6 @@ def fetch_marine_data(latitude, longitude, start_date, end_date):
         print(f"Error during marine API call: {e}")
         return pd.DataFrame()
     return pd.DataFrame()
-
 
 def fetch_wind_data(latitude, longitude, start_date, end_date):
     """
@@ -114,47 +113,66 @@ def fetch_wind_data(latitude, longitude, start_date, end_date):
         return pd.DataFrame()
     return pd.DataFrame()
 
-
-def plot_surf_data(df, location_name):
+def fetch_tide_data(latitude, longitude, start_date, end_date):
     """
-    Plots surf-related data using Matplotlib.
+    Fetches tide data (sea level height) from Open-Meteo and finds the next high and low tides.
 
     Args:
-        df (pd.DataFrame): DataFrame containing surf data.
-        location_name (str): The name of the location for the plot title.
+        latitude (float): Latitude of the location.
+        longitude (float): Longitude of the location.
+        start_date (str): Start date in 'YYYY-MM-DD' format.
+        end_date (str): End date in 'YYYY-MM-DD' format.
+
+    Returns:
+        dict: A dictionary with 'next_high_tide' and 'next_low_tide' information, or None if no data is found.
     """
+    url = MARINE_API_URL
+    params = {
+        "latitude": latitude,
+        "longitude": longitude,
+        "hourly": "sea_level_height_msl",
+        "start_date": start_date,
+        "end_date": end_date
+    }
+
     try:
-        import matplotlib.pyplot as plt
-        import matplotlib.dates as mdates
+        response = requests.get(url, params=params)
+        response.raise_for_status()
+        data = response.json()
+        if 'hourly' in data and data['hourly']['sea_level_height_msl']:
+            df = pd.DataFrame(data['hourly'])
+            df['time'] = pd.to_datetime(df['time'])
+            df['sea_level_height_msl'] = df['sea_level_height_msl'].replace(-999, np.nan)
 
-        # Convert wave height from meters to feet
-        df['swell_wave_height_ft'] = df['swell_wave_height'] * 3.281
+            is_max = df['sea_level_height_msl'] == df['sea_level_height_msl'].rolling(window=3, center=True).max()
+            is_min = df['sea_level_height_msl'] == df['sea_level_height_msl'].rolling(window=3, center=True).min()
 
-        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8), sharex=True)
+            high_tides = df[is_max].dropna()
+            low_tides = df[is_min].dropna()
 
-        # Plot Swell Wave Height on the first subplot
-        ax1.plot(df['time'], df['swell_wave_height_ft'], label='Swell Wave Height (ft)', color='blue')
-        ax1.set_title(f'Swell and Wind Forecast for {location_name}')
-        ax1.set_ylabel('Wave Height (ft)')
-        ax1.legend()
-        ax1.grid(True)
-        ax1.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d %H:%M'))
+            now = datetime.now()
+            next_high_tide = high_tides[high_tides['time'] > now].iloc[0] if not high_tides[high_tides['time'] > now].empty else None
+            next_low_tide = low_tides[low_tides['time'] > now].iloc[0] if not low_tides[low_tides['time'] > now].empty else None
 
-        # Plot Wind Speed on the second subplot
-        ax2.plot(df['time'], df['wind_speed_10m'], label='Wind Speed (km/h)', color='green')
-        ax2.set_ylabel('Wind Speed (km/h)')
-        ax2.set_xlabel('Date and Time')
-        ax2.legend()
-        ax2.grid(True)
-        ax2.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d %H:%M'))
+            result = {}
+            if next_high_tide is not None:
+                result['next_high_tide'] = {
+                    'time': next_high_tide['time'].strftime('%H:%M %p'),
+                    'height_m': next_high_tide['sea_level_height_msl']
+                }
+            if next_low_tide is not None:
+                result['next_low_tide'] = {
+                    'time': next_low_tide['time'].strftime('%H:%M %p'),
+                    'height_m': next_low_tide['sea_level_height_msl']
+                }
 
-        fig.tight_layout()
-        plt.xticks(rotation=45)
-        plt.show()
+            return result if result else None
 
-    except ImportError:
-        print("Matplotlib is not installed. Please install it with 'pip install matplotlib'.")
-
+    except requests.exceptions.RequestException as e:
+        print(f"Error during tide API call: {e}")
+    except Exception as e:
+        print(f"Error processing tide data: {e}")
+    return None
 
 def get_surf_forecast_by_name(location_name):
     """
@@ -177,12 +195,8 @@ def get_surf_forecast_by_name(location_name):
     wind_data = fetch_wind_data(coords['latitude'], coords['longitude'], today.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d'))
 
     if not marine_data.empty and not wind_data.empty:
-        # Before merging, check for non-empty dataframes.
-        if not marine_data.empty and not wind_data.empty:
-            combined_df = pd.merge(marine_data, wind_data, on='time', how='outer')
-            return combined_df
-        else:
-            return pd.DataFrame()
+        combined_df = pd.merge(marine_data, wind_data, on='time', how='inner')
+        return combined_df
     else:
         return pd.DataFrame()
 
@@ -216,47 +230,21 @@ def predict_surf_quality(data_point):
         return None
 
     # 3. Prepare the data for prediction
-    # Ensure the input data has the correct features and shape
-    features = ['swell_wave_height', 'swell_wave_period', 'wind_speed_10m']
+    features = ['swell_wave_height', 'swell_wave_period', 'wind_speed_10m', 'sea_level_height_msl']
 
     try:
-        # Convert the single data point to a DataFrame with a single row
         new_data_df = pd.DataFrame([data_point[features].values], columns=features)
 
-        # Scale the new data using the loaded scaler
         new_data_scaled = scaler_X.transform(new_data_df)
 
-        # Make the prediction
         predicted_scaled = model.predict(new_data_scaled)
 
-        # Inverse transform to get the original score
         predicted_score = scaler_y.inverse_transform(predicted_scaled)
 
-        return predicted_score[0][0]
+        return float(predicted_score[0][0])
     except KeyError as e:
         print(f"Error: Missing feature in data point: {e}. Required features are {features}")
         return None
     except Exception as e:
         print(f"Error during prediction: {e}")
         return None
-
-if __name__ == '__main__':
-    # This block can be used to test the library's functionality
-    location_name = "Laguna Beach"
-
-    # Demonstrate data fetching
-    forecast_data = get_surf_forecast_by_name(location_name)
-    if not forecast_data.empty:
-        print(f"Successfully fetched a 7-day forecast for {location_name}.")
-        print("First 5 rows of data:")
-        print(forecast_data.head())
-        # Plotting the data
-        # plot_surf_data(forecast_data, location_name)
-    else:
-        print(f"Failed to fetch forecast data for {location_name}.")
-
-    # Demonstrate prediction
-    # This will only work if you have run model_trainer.py first
-    predicted_score = predict_surf_quality(location_name)
-    if predicted_score is not None:
-        print(f"\nPredicted Surf Quality Score for {location_name}: {predicted_score:.2f}")
