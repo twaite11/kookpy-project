@@ -1,143 +1,99 @@
-import os
-import io
-import time
-from datetime import datetime
-from PIL import Image
-
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from webdriver_manager.chrome import ChromeDriverManager
+import os
+from datetime import datetime
+from PIL import Image
+import io
+import time
 
-def capture_embedded_video_screenshot_selenium(embed_url, output_dir, interval=600):
-    """
-    Captures a screenshot of an embedded video frame at a regular interval.
+def element_has_dimensions(locator):
+    def _predicate(driver):
+        element = driver.find_element(*locator)
+        if element.size['width'] > 0 and element.size['height'] > 0:
+            return element
+        return False
+    return _predicate
 
-    This function uses Selenium to open a headless Chrome browser, inject a video iframe,
-    and then continuously take and save screenshots of the video frame.
+def capture_embedded_video_screenshot_selenium(base_output_dir, interval=600):
+    if not os.path.exists(base_output_dir):
+        os.makedirs(base_output_dir)
 
-    Args:
-        embed_url (str): The URL of the embedded video (e.g., a YouTube embed link).
-        output_dir (str): The directory where screenshots will be saved. The function
-                          will create this directory if it does not exist.
-        interval (int, optional): The time in seconds to wait between screenshots.
-                                  Defaults to 600 (10 minutes).
-    """
-    # Create the output directory if it doesn't already exist.
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-
-    # --- WebDriver Configuration ---
-    # This section sets up the Chrome browser instance.
-
-    # 1. Specify the path to your ChromeDriver executable.
-    # IMPORTANT: You must download the chromedriver.exe that matches your Chrome browser version.
-    # The path provided here is an example and should be replaced with your actual path.
-    chromedriver_path = r"C:\Users\Tyler\Desktop\chromedriver.exe"
-    service = Service(executable_path=chromedriver_path)
-
-    # 2. Configure the Chrome options.
+    service = Service(ChromeDriverManager().install())
     options = webdriver.ChromeOptions()
-    options.add_argument('--headless')       # Runs the browser in the background without a UI.
-    options.add_argument('--disable-gpu')    # Disables GPU hardware acceleration for headless mode.
+    options.add_argument('--headless=new')
+    options.add_argument('--disable-gpu')
     options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36")
-    options.add_argument("--mute-audio")     # Mutes audio from the video.
+    options.add_argument("--mute-audio")
+    options.add_argument("--window-size=1400,800")
 
-    # Initialize the WebDriver with the configured service and options.
     driver = webdriver.Chrome(service=service, options=options)
+    wait = WebDriverWait(driver, 30)
+
+    html_content = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Surf Cam</title>
+    </head>
+    <body>
+        <iframe id="youtube_iframe" width="1310" height="737" src="https://www.youtube.com/embed/6hVkLrAmYa0" title="Pacifica Pier and Beach, Pacifica CA 4k Live" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+    </body>
+    </html>
+    """
+    
+    data_url = f"data:text/html;charset=utf-8,{html_content}"
 
     try:
-        # Step 1: Create and Inject the Iframe
-        # The script navigates to a blank page and uses JavaScript to dynamically
-        # create and add an iframe element containing the embedded video.
-        driver.get("about:blank")
-        driver.execute_script(f"""
-        var iframe = document.createElement('iframe');
-        iframe.width = '781';
-        iframe.height = '439';
-        iframe.src = '{embed_url}';
-        iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
-        iframe.allowFullscreen = true;
-        document.body.appendChild(iframe);
-        """)
-
-        # Step 2: Wait for the Iframe to Load and Switch Focus
-        # We wait until the iframe is present on the page. Once it is, we switch
-        # the WebDriver's focus to it so we can interact with its content.
-        wait = WebDriverWait(driver, 20)
-        iframe = wait.until(EC.presence_of_element_located((By.XPATH, "//iframe")))
-        driver.switch_to.frame(iframe)
-
-        # Step 3: Attempt to Click the Play Button
-        # The script attempts to find and click the play button to ensure the video
-        # is playing. This is often necessary for live streams or videos that don't
-        # autoplay. The focus is then switched back to the main document.
+        driver.get(data_url)
+        
+        # This will now successfully find the iframe with the added ID
+        iframe_element = wait.until(EC.presence_of_element_located((By.ID, "youtube_iframe")))
+        print("Successfully found the iframe.")
+        
+        driver.switch_to.frame(iframe_element)
+        print("Successfully switched to the iframe.")
+        
         try:
             play_button = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, ".ytp-large-play-button")))
             play_button.click()
-            driver.switch_to.default_content()
+            print("Successfully clicked the play button.")
         except Exception as e:
-            # If the play button isn't found or clickable, it might be an ad or
-            # a different UI, and we can continue.
-            print(f"Could not click play button: {e}")
-            driver.switch_to.default_content()
+            print(f"Could not click play button: {e}. Assuming autoplay or another issue.")
 
-        # Step 4: Continuous Screenshot Loop
-        # This loop runs indefinitely, taking a screenshot at the specified interval.
+        wait.until(element_has_dimensions((By.TAG_NAME, "video")))
+        print("Video element has valid dimensions.")
+
         while True:
-            try:
-                # Re-locate and switch to the iframe to ensure focus.
-                iframe = wait.until(EC.presence_of_element_located((By.XPATH, "//iframe")))
-                driver.switch_to.frame(iframe)
+            driver.switch_to.default_content()
+            
+            timestamp = datetime.now()
+            # Create a folder name for the current day
+            date_folder = timestamp.strftime("%Y-%m-%d")
+            output_folder = os.path.join(base_output_dir, date_folder)
+            
+            if not os.path.exists(output_folder):
+                os.makedirs(output_folder)
+            
+            # Create the file name with both date and time
+            date_time_str = timestamp.strftime("%Y-%m-%d_%H-%M")
+            output_file = os.path.join(output_folder, f"full_screenshot_{date_time_str}.png")
+            
+            driver.get_screenshot_as_file(output_file)
+            print(f"Captured full page screenshot: {output_file}")
+            
+            driver.switch_to.frame(iframe_element)
 
-                # Find the video element within the iframe.
-                video_frame = driver.find_element(By.TAG_NAME, "video")
-                video_frame_location = video_frame.location
-                video_frame_size = video_frame.size
-
-                # Switch focus back to the main document to take a full-page screenshot.
-                driver.switch_to.default_content()
-
-                # Take the full screenshot and use Pillow to crop it to the video frame's dimensions.
-                img = Image.open(io.BytesIO(driver.get_screenshot_as_png()))
-                left = video_frame_location['x']
-                top = video_frame_location['y']
-                right = left + video_frame_size['width']
-                bottom = top + video_frame_size['height']
-                img = img.crop((left, top, right, bottom))
-
-                # Create a file name based on the current date and time.
-                timestamp = datetime.now()
-                date_str = timestamp.strftime("%d-%m-%Y")
-                time_str = timestamp.strftime("%H-%M")
-                output_file = os.path.join(output_dir, f"{date_str}.{time_str}.sharppark1.png")
-
-                # Save the cropped screenshot.
-                img.save(output_file)
-                print(f"Captured video frame screenshot: {output_file}")
-
-            except Exception as e:
-                # Log any errors that occur during the screenshot process.
-                print(f"Error capturing video frame screenshot: {e}")
-                driver.switch_to.default_content()
-
-            # Wait for the specified interval before the next capture.
             time.sleep(interval)
 
     except Exception as e:
-        # Catch any exceptions that might occur during the initial setup.
-        print(f"An error occurred: {e}")
+        print(f"An unexpected error occurred: {e}")
     finally:
-        # Ensure the browser is closed, even if an error occurs.
         driver.quit()
 
-# --- Example Usage ---
-if __name__ == "__main__":
-    # Specify the embedded video URL and the output directory.
-    # The URL should be for an embedded video, e.g., from YouTube's "Embed" option.
-    embed_url = "https://www.youtube.com/embed/hEFZzMgGnCs"
-    output_directory = r"C:\Users\Tyler\Desktop\surf_imgs"
-
-    # Call the function to begin capturing screenshots.
-    capture_embedded_video_screenshot_selenium(embed_url, output_directory)
+# Example usage:
+base_output_directory = r"C:\Users\Tyler\Desktop\surf_imgs"
+capture_embedded_video_screenshot_selenium(base_output_directory)
