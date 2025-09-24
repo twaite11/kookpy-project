@@ -3,9 +3,9 @@ import pandas as pd
 import tensorflow as tf
 import joblib
 from datetime import datetime, timedelta
+import time
 import os
 import numpy as np
-import matplotlib.pyplot as plt
 
 # Base URLs for the Open-Meteo APIs
 GEOCODING_API_URL = "https://geocoding-api.open-meteo.com/v1/search"
@@ -142,8 +142,9 @@ def fetch_tide_data(latitude, longitude, start_date, end_date):
         if 'hourly' in data and data['hourly']['sea_level_height_msl']:
             df = pd.DataFrame(data['hourly'])
             df['time'] = pd.to_datetime(df['time'])
-            df['sea_level_height_msl'] = df['sea_level_height_msl'].replace(-999, np.nan)
+            df['sea_level_height_msl'] = df['sea_level_height_msl'].replace(-999, np.nan) # Handle missing values
 
+            # Use a rolling window to find local minima and maxima
             is_max = df['sea_level_height_msl'] == df['sea_level_height_msl'].rolling(window=3, center=True).max()
             is_min = df['sea_level_height_msl'] == df['sea_level_height_msl'].rolling(window=3, center=True).min()
 
