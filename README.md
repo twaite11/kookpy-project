@@ -23,9 +23,13 @@ pandas
 
 matplotlib
 
+streamlit
+
+plotly
+
 You can install these using pip:
 
-`pip install requests pandas matplotlib`
+`pip install requests pandas matplotlib streamlit plotly`
 
 Usage
 ## 1. Collect Historical Data 
