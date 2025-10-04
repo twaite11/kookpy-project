@@ -6,12 +6,32 @@ from datetime import datetime, timedelta
 import time
 import os
 import numpy as np
+import streamlit as st
 
 # Base URLs for the Open-Meteo APIs
 GEOCODING_API_URL = "https://geocoding-api.open-meteo.com/v1/search"
 MARINE_API_URL = "https://marine-api.open-meteo.com/v1/marine"
 WEATHER_API_URL = "https://api.open-meteo.com/v1/forecast"
 HISTORICAL_WEATHER_API_URL = "https://archive-api.open-meteo.com/v1/archive"
+
+
+# Use Streamlit's resource caching to load the model only once
+@st.cache_resource
+def load_model(path='wave_prediction_model.keras'):
+    """Loads the pre-trained TensorFlow model from disk."""
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"Model file not found at {path}. Please run model_trainer.py first.")
+    return tf.keras.models.load_model(path)
+
+# Use Streamlit's resource caching to load the scalers only once
+@st.cache_resource
+def load_scalers(scaler_X_path='scaler_X.pkl', scaler_y_path='scaler_y.pkl'):
+    """Loads the data scalers from disk."""
+    if not os.path.exists(scaler_X_path) or not os.path.exists(scaler_y_path):
+        raise FileNotFoundError("Scaler files not found. Please run model_trainer.py first.")
+    scaler_X = joblib.load(scaler_X_path)
+    scaler_y = joblib.load(scaler_y_path)
+    return scaler_X, scaler_y
 
 
 def geocode_location(location_name):
@@ -213,24 +233,9 @@ def predict_surf_quality(data_point):
     Returns:
         float: The predicted wave quality score. Returns None if prediction fails.
     """
-    # 1. Check if model and scalers exist
-    if not os.path.exists('wave_prediction_model.keras') or \
-       not os.path.exists('scaler_X.pkl') or \
-       not os.path.exists('scaler_y.pkl'):
-        print("Error: The trained model files were not found.")
-        print("Please run 'model_trainer.py' first to generate them.")
-        return None
+    model = load_model()
+    scaler_X, scaler_y = load_scalers()
 
-    # 2. Load the trained model and scalers
-    try:
-        model = tf.keras.models.load_model('wave_prediction_model.keras')
-        scaler_X = joblib.load('scaler_X.pkl')
-        scaler_y = joblib.load('scaler_y.pkl')
-    except Exception as e:
-        print(f"Error loading model files: {e}")
-        return None
-
-    # 3. Prepare the data for prediction
     features = ['swell_wave_height', 'swell_wave_period', 'wind_speed_10m', 'sea_level_height_msl']
 
     try:
