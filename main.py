@@ -84,6 +84,5 @@ def predict_and_plot_forecast(location_name):
 
 # Example Usage:
 if __name__ == '__main__':
-    # You will need to change this to a location you have trained a model for.
     location = "Laguna Beach"
     predict_and_plot_forecast(location)

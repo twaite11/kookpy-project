@@ -1,13 +1,11 @@
 import pandas as pd
 import kookpy
 from datetime import datetime, timedelta
-import os
-import numpy as np
+
 
 def calculate_heuristic_score(row):
     """
     Calculates a heuristic wave quality score based on swell and wind data.
-    This formula is a starting point and can be adjusted for your preferences.
     - Higher swell_wave_height and swell_wave_period are better.
     - Lower wind_speed_10m is better.
     """
@@ -17,7 +15,6 @@ def calculate_heuristic_score(row):
     wind_weight = -0.1  # Negative weight for wind speed
 
     # Normalize values to a 0-10 scale for scoring
-    # These normalization factors are examples and can be adjusted
     normalized_height = min(row['swell_wave_height'], 3.0) / 3.0 * 10
     normalized_period = min(row['swell_wave_period'], 15.0) / 15.0 * 10
     normalized_wind = min(row['wind_speed_10m'], 30.0) / 30.0 * 10
@@ -26,7 +23,7 @@ def calculate_heuristic_score(row):
             (period_weight * normalized_period) + \
             (wind_weight * normalized_wind)
 
-    # Ensure the score is within a reasonable range, e.g., 1-10
+    # Ensure the score is within a reasonable range
     score = max(1, min(10, score))
     return score
 
