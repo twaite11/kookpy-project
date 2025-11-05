@@ -37,6 +37,7 @@ st.markdown(
     unsafe_allow_html=True
 )
 
+
 def create_logo_svg():
     """Generates an abstract blue and purple wave-like logo."""
     return f"""
@@ -50,6 +51,7 @@ def create_logo_svg():
       <path d="M10 50 Q30 30 50 50 T90 50" stroke="url(#waveGradient)" stroke-width="10" fill="none" stroke-linecap="round"/>
     </svg>
     """
+
 
 def create_wave_icon(height_ft):
     """Generates an eye-catching SVG string for a wave height icon."""
@@ -71,6 +73,7 @@ def create_wave_icon(height_ft):
         <path class="wave-body" d="M0,50 Q25,25 50,50 T100,50" style="transform-origin: 50% 50%; transform: scaleY({0.5 + scaled_height/2});"/>
     </svg>
     """
+
 
 def create_wind_icon(speed, direction):
     """Generates an animated SVG string for a wind direction icon."""
@@ -99,12 +102,16 @@ def create_wind_icon(speed, direction):
         <path d="M70,50 L80,50" stroke="#61A4D3" stroke-width="2"/>
     </svg>
     """
+
+
 def create_viridis_color(normalized_score):
     """Generates a hex color from a Viridis-like gradient."""
     # A simplified Viridis-like palette for direct use
-    colors = ['#440154', '#472f7d', '#3e6a8e', '#29918c', '#33b479', '#9fce25', '#fddc24', '#f6e812']
+    colors = ['#440154', '#472f7d', '#3e6a8e', '#29918c',
+              '#33b479', '#9fce25', '#fddc24', '#f6e812']
     index = int(normalized_score * (len(colors) - 1))
     return colors[index]
+
 
 def create_score_icon(score, max_score=10):
     """Generates an SVG string for a circular score meter with color."""
@@ -126,6 +133,7 @@ def create_score_icon(score, max_score=10):
     </svg>
     """
 
+
 def create_tide_icon():
     """Generates a static SVG icon for tide data."""
     return f"""
@@ -136,6 +144,8 @@ def create_tide_icon():
         <path d="M50,50 L40,40 L60,40 L50,50 Z" fill="#61A4D3" />
     </svg>
     """
+
+
 def create_tide_data_html(tide_data):
     """Creates an HTML string to display tide data."""
     if not tide_data:
@@ -156,10 +166,12 @@ def create_tide_data_html(tide_data):
     html += "</div>"
     return html
 
+
 def image_to_base64(svg_string):
     """Converts a string of SVG to a base64-encoded URI."""
     encoded = base64.b64encode(svg_string.encode('utf-8')).decode('utf-8')
     return f"data:image/svg+xml;base64,{encoded}"
+
 
 def create_score_legend():
     """Generates the AI quality score legend using Streamlit components."""
@@ -183,15 +195,20 @@ def create_score_legend():
     # Labels for the qualitative scores
     col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
-        st.markdown("<p style='font-size: 12px; text-align: center; color: #440154;'><b>1</b><br>(Terrible)</p>", unsafe_allow_html=True)
+        st.markdown(
+            "<p style='font-size: 12px; text-align: center; color: #440154;'><b>1</b><br>(Terrible)</p>", unsafe_allow_html=True)
     with col2:
-        st.markdown("<p style='font-size: 12px; text-align: center; color: #29918c;'><b>5</b><br>(Decent)</p>", unsafe_allow_html=True)
+        st.markdown(
+            "<p style='font-size: 12px; text-align: center; color: #29918c;'><b>5</b><br>(Decent)</p>", unsafe_allow_html=True)
     with col3:
-        st.markdown("<p style='font-size: 12px; text-align: center; color: #33b479;'><b>6</b><br>(Good)</p>", unsafe_allow_html=True)
+        st.markdown(
+            "<p style='font-size: 12px; text-align: center; color: #33b479;'><b>6</b><br>(Good)</p>", unsafe_allow_html=True)
     with col4:
-        st.markdown("<p style='font-size: 12px; text-align: center; color: #fddc24;'><b>8</b><br>(Great)</p>", unsafe_allow_html=True)
+        st.markdown(
+            "<p style='font-size: 12px; text-align: center; color: #fddc24;'><b>8</b><br>(Great)</p>", unsafe_allow_html=True)
     with col5:
-        st.markdown("<p style='font-size: 12px; text-align: center; color: #f6e812;'><b>10</b><br>(All time)</p>", unsafe_allow_html=True)
+        st.markdown(
+            "<p style='font-size: 12px; text-align: center; color: #f6e812;'><b>10</b><br>(All time)</p>", unsafe_allow_html=True)
 
 
 # Main application title and description
@@ -208,7 +225,8 @@ st.markdown("---")
 tabs = st.tabs(["Search by Name", "Select from List"])
 
 with tabs[0]:
-    beach_name_input = st.text_input("Enter a beach name:", "Laguna Beach", help="e.g., Laguna Beach, Huntington Beach, Waikiki")
+    beach_name_input = st.text_input(
+        "Enter a beach name:", "Laguna Beach", help="e.g., Laguna Beach, Huntington Beach, Waikiki")
     if st.button("Get Forecast & Prediction", type="primary"):
         if not beach_name_input:
             st.error("Please enter a valid beach name.")
@@ -243,7 +261,8 @@ with tabs[1]:
         "Morro Strand State Beach", "Sunset Beach, Orange County", "Bolsa Chica State Beach",
         "San Elijo State Beach"
     ]
-    beach_name_select = st.selectbox("Select a popular California beach:", california_beaches)
+    beach_name_select = st.selectbox(
+        "Select a popular California beach:", california_beaches)
     if st.button("Get Forecast for Selected Beach", type="primary"):
         st.session_state.run_forecast = True
         st.session_state.beach_name = beach_name_select
@@ -259,17 +278,21 @@ if "run_forecast" in st.session_state and st.session_state.run_forecast:
             st.stop()
 
         # Fetch all data using the coordinates
-        forecast_df = kookpy.get_surf_forecast_by_name(st.session_state.beach_name)
+        forecast_df = kookpy.get_surf_forecast_by_name(
+            st.session_state.beach_name)
 
         if forecast_df.empty:
-            st.error("Could not find forecast for that location. Please try another name or check your internet connection.")
+            st.error(
+                "Could not find forecast for that location. Please try another name or check your internet connection.")
             st.session_state.run_forecast = False
         else:
             try:
                 # Ensure the DataFrame has the columns needed for prediction
-                required_features = ['swell_wave_height', 'swell_wave_period', 'wind_speed_10m', 'sea_level_height_msl']
+                required_features = [
+                    'swell_wave_height', 'swell_wave_period', 'wind_speed_10m', 'sea_level_height_msl']
                 if not all(feature in forecast_df.columns for feature in required_features):
-                    st.error("Forecast data is missing required features for AI prediction.")
+                    st.error(
+                        "Forecast data is missing required features for AI prediction.")
                     st.session_state.run_forecast = False
                     st.stop()
 
@@ -277,15 +300,18 @@ if "run_forecast" in st.session_state and st.session_state.run_forecast:
                     lambda row: kookpy.predict_surf_quality(row), axis=1
                 )
             except Exception as e:
-                st.error(f"Prediction failed. Have you trained your model by running 'model_trainer.py'? Error: {e}")
+                st.error(
+                    f"Prediction failed. Have you trained your model by running 'model_trainer.py'? Error: {e}")
                 st.session_state.run_forecast = False
                 st.stop()
 
             # Fetch tide data for the next 48 hours to find high/low tides
-            tide_data = kookpy.fetch_tide_data(coords['latitude'], coords['longitude'], datetime.now().date().strftime('%Y-%m-%d'), (datetime.now().date() + timedelta(days=2)).strftime('%Y-%m-%d'))
+            tide_data = kookpy.fetch_tide_data(coords['latitude'], coords['longitude'], datetime.now(
+            ).date().strftime('%Y-%m-%d'), (datetime.now().date() + timedelta(days=2)).strftime('%Y-%m-%d'))
 
             forecast_df['swell_wave_height_ft'] = forecast_df['swell_wave_height'] * 3.281
-            st.success(f"Forecast and prediction for {st.session_state.beach_name} ready.")
+            st.success(
+                f"Forecast and prediction for {st.session_state.beach_name} ready.")
             st.markdown("---")
 
             # --- Current Conditions Summary ---
@@ -297,31 +323,38 @@ if "run_forecast" in st.session_state and st.session_state.run_forecast:
 
                 with col1:
                     st.markdown(f"**AI QUALITY SCORE**")
-                    score_icon_svg = create_score_icon(now_df['wave_quality_score'])
+                    score_icon_svg = create_score_icon(
+                        now_df['wave_quality_score'])
                     st.image(image_to_base64(score_icon_svg), width=200)
 
                 with col2:
                     st.markdown(f"**CURRENT WAVE HEIGHT**")
-                    st.markdown(f"<p style='font-size: 30px; margin: 0;'>{now_df['swell_wave_height_ft']:.1f} ft</p>", unsafe_allow_html=True)
-                    wave_icon_svg = create_wave_icon(now_df['swell_wave_height_ft'])
+                    st.markdown(
+                        f"<p style='font-size: 30px; margin: 0;'>{now_df['swell_wave_height_ft']:.1f} ft</p>", unsafe_allow_html=True)
+                    wave_icon_svg = create_wave_icon(
+                        now_df['swell_wave_height_ft'])
                     st.image(image_to_base64(wave_icon_svg), width=100)
 
                 with col3:
                     st.markdown(f"**CURRENT WIND**")
-                    st.markdown(f"<p style='font-size: 30px; margin: 0;'>{now_df['wind_speed_10m']:.1f} km/h</p>", unsafe_allow_html=True)
-                    wind_icon_svg = create_wind_icon(now_df['wind_speed_10m'], now_df['wind_direction_10m'])
+                    st.markdown(
+                        f"<p style='font-size: 30px; margin: 0;'>{now_df['wind_speed_10m']:.1f} km/h</p>", unsafe_allow_html=True)
+                    wind_icon_svg = create_wind_icon(
+                        now_df['wind_speed_10m'], now_df['wind_direction_10m'])
                     st.image(image_to_base64(wind_icon_svg), width=100)
 
                 with col4:
                     st.markdown(f"**TIDE**")
                     if tide_data and 'next_high_tide' in tide_data:
-                        st.markdown(f"<p style='font-size: 30px; margin: 0;'>{tide_data['next_high_tide']['height_m'] * 3.281:.1f} ft</p>", unsafe_allow_html=True)
+                        st.markdown(
+                            f"<p style='font-size: 30px; margin: 0;'>{tide_data['next_high_tide']['height_m'] * 3.281:.1f} ft</p>", unsafe_allow_html=True)
                         tide_data_html = f"<div style='font-size: 14px;'><b>Next Tides:</b><p style='margin: 0;'>High: {tide_data['next_high_tide']['time']} ({tide_data['next_high_tide']['height_m'] * 3.281:.1f} ft)</p></div>"
                         if 'next_low_tide' in tide_data:
                             tide_data_html += f"<p style='margin: 0;'>Low: {tide_data['next_low_tide']['time']} ({tide_data['next_low_tide']['height_m'] * 3.281:.1f} ft)</p>"
                         st.markdown(tide_data_html, unsafe_allow_html=True)
                     else:
-                        st.markdown(f"<p style='font-size: 30px; margin: 0;'>N/A</p>", unsafe_allow_html=True)
+                        st.markdown(
+                            f"<p style='font-size: 30px; margin: 0;'>N/A</p>", unsafe_allow_html=True)
                         st.write("Tide data not available.")
                     tide_icon_svg = create_tide_icon()
                     st.image(image_to_base64(tide_icon_svg), width=100)
@@ -355,9 +388,12 @@ if "run_forecast" in st.session_state and st.session_state.run_forecast:
             dates = pd.to_datetime(forecast_df['time']).dt.date.unique()
             for i, date in enumerate(dates):
                 date_str = date.strftime('%Y-%m-%d')
-                fig.add_vline(x=date_str, line_width=1, line_dash="dash", line_color="white", opacity=0.5, row=1, col=1)
-                fig.add_vline(x=date_str, line_width=1, line_dash="dash", line_color="white", opacity=0.5, row=2, col=1)
-                fig.add_vline(x=date_str, line_width=1, line_dash="dash", line_color="white", opacity=0.5, row=3, col=1)
+                fig.add_vline(x=date_str, line_width=1, line_dash="dash",
+                              line_color="white", opacity=0.5, row=1, col=1)
+                fig.add_vline(x=date_str, line_width=1, line_dash="dash",
+                              line_color="white", opacity=0.5, row=2, col=1)
+                fig.add_vline(x=date_str, line_width=1, line_dash="dash",
+                              line_color="white", opacity=0.5, row=3, col=1)
 
                 if i < len(dates) - 1:
                     mid_point = date + (dates[i+1] - date) / 2
@@ -381,7 +417,6 @@ if "run_forecast" in st.session_state and st.session_state.run_forecast:
                 hovertemplate="<b>%{x|%b %d, %I:%M %p}</b><br>Wind Speed: %{y:.2f} km/h<extra></extra>"
             ), row=2, col=1)
 
-
             # --- Tide Chart ---
             fig.add_trace(go.Scatter(
                 x=forecast_df['time'],
@@ -392,8 +427,10 @@ if "run_forecast" in st.session_state and st.session_state.run_forecast:
                 hovertemplate="<b>%{x|%b %d, %I:%M %p}</b><br>Tide: %{y:.2f} m<extra></extra>"
             ), row=3, col=1)
 
-            high_tides = forecast_df[forecast_df['sea_level_height_msl'] == forecast_df['sea_level_height_msl'].rolling(window=3, center=True).max()].dropna()
-            low_tides = forecast_df[forecast_df['sea_level_height_msl'] == forecast_df['sea_level_height_msl'].rolling(window=3, center=True).min()].dropna()
+            high_tides = forecast_df[forecast_df['sea_level_height_msl'] == forecast_df['sea_level_height_msl'].rolling(
+                window=3, center=True).max()].dropna()
+            low_tides = forecast_df[forecast_df['sea_level_height_msl'] == forecast_df['sea_level_height_msl'].rolling(
+                window=3, center=True).min()].dropna()
 
             fig.add_trace(go.Scatter(
                 x=high_tides['time'],
@@ -427,9 +464,8 @@ if "run_forecast" in st.session_state and st.session_state.run_forecast:
 
             fig.update_layout(
                 title_text=f"Swell Wave Height and Predicted Quality for {st.session_state.beach_name}",
-                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+                legend=dict(orientation="h", yanchor="bottom",
+                            y=1.02, xanchor="right", x=1)
             )
 
             st.plotly_chart(fig, use_container_width=True)
-
-

@@ -5,12 +5,14 @@ import matplotlib.dates as mdates
 from matplotlib.colors import LinearSegmentedColormap
 from datetime import datetime, timedelta
 
+
 def predict_and_plot_forecast(location_name):
     """
     Fetches the surf forecast, predicts the wave quality score for each time point,
     and plots the results in a color-coded graph.
     """
-    print(f"Fetching 7-day forecast and predicting surf quality for {location_name}...")
+    print(
+        f"Fetching 7-day forecast and predicting surf quality for {location_name}...")
 
     # Fetch the 7-day forecast data using the kookpy library
     forecast_df = kookpy.get_surf_forecast_by_name(location_name)
@@ -30,7 +32,8 @@ def predict_and_plot_forecast(location_name):
     print("Prediction complete. Generating plot...")
 
     # Define the color map for the surf quality score
-    cmap = LinearSegmentedColormap.from_list("mycmap", ["red", "yellow", "green"])
+    cmap = LinearSegmentedColormap.from_list(
+        "mycmap", ["red", "yellow", "green"])
 
     # Create the figure and axes for two subplots
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(15, 10), sharex=True)
@@ -53,12 +56,14 @@ def predict_and_plot_forecast(location_name):
         zorder=2,
     )
 
-    ax1.set_title(f"Surf Forecast and Predicted Quality for {location_name}", fontsize=16)
+    ax1.set_title(
+        f"Surf Forecast and Predicted Quality for {location_name}", fontsize=16)
     ax1.set_ylabel("Swell Wave Height (ft)", fontsize=12)
     ax1.grid(True, which='both', linestyle='--', linewidth=0.5)
 
     cbar = fig.colorbar(sc, ax=ax1, orientation='vertical', pad=0.02)
-    cbar.set_label("Predicted Wave Quality Score (1=Bad, 10=Good)", fontsize=12)
+    cbar.set_label(
+        "Predicted Wave Quality Score (1=Bad, 10=Good)", fontsize=12)
 
     # --- Second Subplot: Wind Speed ---
     ax2.plot(
@@ -81,6 +86,7 @@ def predict_and_plot_forecast(location_name):
 
     plt.tight_layout()
     plt.show()
+
 
 # Example Usage:
 if __name__ == '__main__':

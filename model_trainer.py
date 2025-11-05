@@ -6,6 +6,7 @@ from tensorflow import keras
 import joblib
 import os
 
+
 def build_and_train_model(X_train, y_train, epochs=100):
     """
     Builds and trains a simple neural network model using TensorFlow.
@@ -19,7 +20,8 @@ def build_and_train_model(X_train, y_train, epochs=100):
         keras.Model: The trained TensorFlow model.
     """
     model = keras.Sequential([
-        keras.layers.Dense(64, activation='relu', input_shape=(X_train.shape[1],)),
+        keras.layers.Dense(64, activation='relu',
+                           input_shape=(X_train.shape[1],)),
         keras.layers.Dense(32, activation='relu'),
         keras.layers.Dense(1)
     ])
@@ -30,6 +32,7 @@ def build_and_train_model(X_train, y_train, epochs=100):
     model.fit(X_train, y_train, epochs=epochs, batch_size=32, verbose=1)
     print("Model training complete.")
     return model
+
 
 def save_model_and_scalers(model, scaler_X, scaler_y, model_path='wave_prediction_model.keras', scaler_X_path='scaler_X.pkl', scaler_y_path='scaler_y.pkl'):
     """
@@ -48,6 +51,7 @@ def save_model_and_scalers(model, scaler_X, scaler_y, model_path='wave_predictio
     joblib.dump(scaler_y, scaler_y_path)
     print("\nModel and scalers saved successfully.")
 
+
 if __name__ == '__main__':
     # Define the path to your historical data
     file_path = 'historical_surf_data.csv'
@@ -61,10 +65,12 @@ if __name__ == '__main__':
         df.dropna(inplace=True)
 
         if df.empty:
-            print("Error: The historical data is empty after cleaning. Cannot train the model.")
+            print(
+                "Error: The historical data is empty after cleaning. Cannot train the model.")
         else:
             # Define your features and target
-            features = ['swell_wave_height', 'swell_wave_period', 'wind_speed_10m', 'sea_level_height_msl']
+            features = ['swell_wave_height', 'swell_wave_period',
+                        'wind_speed_10m', 'sea_level_height_msl']
             target = 'wave_quality_score'
 
             # Check if all required columns exist
@@ -76,14 +82,16 @@ if __name__ == '__main__':
                 y = df[target]
 
                 # Split the data into training and testing sets
-                X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+                X_train, X_test, y_train, y_test = train_test_split(
+                    X, y, test_size=0.2, random_state=42)
 
                 # Scale the features and target data
                 scaler_X = StandardScaler()
                 X_train_scaled = scaler_X.fit_transform(X_train)
 
                 scaler_y = StandardScaler()
-                y_train_scaled = scaler_y.fit_transform(y_train.values.reshape(-1, 1))
+                y_train_scaled = scaler_y.fit_transform(
+                    y_train.values.reshape(-1, 1))
 
                 # Build and train the model
                 model = build_and_train_model(X_train_scaled, y_train_scaled)

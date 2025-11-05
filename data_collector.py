@@ -27,6 +27,7 @@ def calculate_heuristic_score(row):
     score = max(1, min(10, score))
     return score
 
+
 def collect_and_save_historical_data(location_name, start_date_str, end_date_str):
     """
     Collects historical surf data, calculates a quality score, and saves it to a CSV file.
@@ -54,16 +55,21 @@ def collect_and_save_historical_data(location_name, start_date_str, end_date_str
 
         try:
             # Fetch marine and wind data
-            marine_data = kookpy.fetch_marine_data(coords['latitude'], coords['longitude'], current_date_str, current_date_str)
-            wind_data = kookpy.fetch_wind_data(coords['latitude'], coords['longitude'], current_date_str, current_date_str)
+            marine_data = kookpy.fetch_marine_data(
+                coords['latitude'], coords['longitude'], current_date_str, current_date_str)
+            wind_data = kookpy.fetch_wind_data(
+                coords['latitude'], coords['longitude'], current_date_str, current_date_str)
 
             # Ensure both dataframes are not empty and merge
             if not marine_data.empty and not wind_data.empty:
-                combined_df = pd.merge(marine_data, wind_data, on='time', how='inner')
-                combined_df['wave_quality_score'] = combined_df.apply(calculate_heuristic_score, axis=1)
+                combined_df = pd.merge(
+                    marine_data, wind_data, on='time', how='inner')
+                combined_df['wave_quality_score'] = combined_df.apply(
+                    calculate_heuristic_score, axis=1)
                 all_data.append(combined_df)
             else:
-                print(f"Could not fetch data for {current_date_str}. Skipping.")
+                print(
+                    f"Could not fetch data for {current_date_str}. Skipping.")
         except Exception as e:
             print(f"Error fetching data for {current_date_str}: {e}")
 
@@ -77,11 +83,13 @@ def collect_and_save_historical_data(location_name, start_date_str, end_date_str
         if not full_df.empty:
             file_path = 'historical_surf_data.csv'
             full_df.to_csv(file_path, index=False)
-            print(f"\nSuccessfully collected and saved {len(full_df)} data points to {file_path}")
+            print(
+                f"\nSuccessfully collected and saved {len(full_df)} data points to {file_path}")
         else:
             print("\nNo data was collected.")
     else:
         print("\nNo data was collected.")
+
 
 if __name__ == '__main__':
     location = "Laguna Beach"
