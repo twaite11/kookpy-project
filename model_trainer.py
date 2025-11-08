@@ -9,8 +9,11 @@ import os
 
 def build_and_train_model(X_train, y_train, epochs=100):
     """
+    Bread and butter of creating the actual model
     Builds and trains a simple neural network model using TensorFlow.
-
+    TODO***: 1. Is MAE the best measure for loss and accuracy??? try MSE and others
+    TODO***: 2. Need high quality image data... find source
+    TODO***: 3. define and test CNN fusion layer for images (ResNet was looking best last check, try others)
     Args:
         X_train (np.array): Training data for features.
         y_train (np.array): Training data for the target variable (wave quality score).
@@ -36,7 +39,7 @@ def build_and_train_model(X_train, y_train, epochs=100):
 
 def save_model_and_scalers(model, scaler_X, scaler_y, model_path='wave_prediction_model.keras', scaler_X_path='scaler_X.pkl', scaler_y_path='scaler_y.pkl'):
     """
-    Saves the trained model and the data scalers to disk.
+    Save model
 
     Args:
         model (keras.Model): The trained TensorFlow model.
@@ -53,20 +56,20 @@ def save_model_and_scalers(model, scaler_X, scaler_y, model_path='wave_predictio
 
 
 if __name__ == '__main__':
-    # Define the path to your historical data
+
     file_path = 'historical_surf_data.csv'
 
     if not os.path.exists(file_path):
         print(f"Error: Data file not found at '{file_path}'.")
         print("Please run 'data_collector.py' first to generate the historical data.")
     else:
-        # Load and clean the data
+        # load and drop if missing
         df = pd.read_csv(file_path, parse_dates=['time'])
         df.dropna(inplace=True)
 
         if df.empty:
             print(
-                "Error: The historical data is empty after cleaning. Cannot train the model.")
+                "Error: empty")
         else:
             # Define your features and target
             features = ['swell_wave_height', 'swell_wave_period',
@@ -75,17 +78,17 @@ if __name__ == '__main__':
 
             # Check if all required columns exist
             if not all(col in df.columns for col in features + [target]):
-                print("Error: The CSV file is missing one or more required columns.")
-                print(f"Required columns: {features + [target]}")
+                print("error missing column")
+                print(f"required columns: {features + [target]}")
             else:
                 X = df[features]
                 y = df[target]
 
-                # Split the data into training and testing sets
+                # split the data into training and testing sets
                 X_train, X_test, y_train, y_test = train_test_split(
                     X, y, test_size=0.2, random_state=42)
 
-                # Scale the features and target data
+                # scale the features and target data
                 scaler_X = StandardScaler()
                 X_train_scaled = scaler_X.fit_transform(X_train)
 
@@ -93,8 +96,8 @@ if __name__ == '__main__':
                 y_train_scaled = scaler_y.fit_transform(
                     y_train.values.reshape(-1, 1))
 
-                # Build and train the model
+                # build and train the model
                 model = build_and_train_model(X_train_scaled, y_train_scaled)
 
-                # Save the model and scalers
+                # save the model and scalers
                 save_model_and_scalers(model, scaler_X, scaler_y)

@@ -8,8 +8,8 @@ from datetime import datetime, timedelta
 
 def predict_and_plot_forecast(location_name):
     """
-    Fetches the surf forecast, predicts the wave quality score for each time point,
-    and plots the results in a color-coded graph.
+    deprecated testing mostly script
+    for finding and prediciting, but also print simple graphs
     """
     print(
         f"Fetching 7-day forecast and predicting surf quality for {location_name}...")

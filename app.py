@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 import base64
 import numpy as np
 
-# Set up the page configuration and a dark theme
+# page config
 st.set_page_config(layout="wide", page_title="Kookpy AI Surf Forecast")
 
 st.markdown(
@@ -78,7 +78,6 @@ def create_wave_icon(height_ft):
 def create_wind_icon(speed, direction):
     """Generates an animated SVG string for a wind direction icon."""
     animation_duration = max(0.5, 2 - (speed / 30))
-    # Correcting for SVG's Y-axis being inverted
     rotation = direction + 180
     return f"""
     <svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
@@ -106,7 +105,7 @@ def create_wind_icon(speed, direction):
 
 def create_viridis_color(normalized_score):
     """Generates a hex color from a Viridis-like gradient."""
-    # A simplified Viridis-like palette for direct use
+    # define the pattern -- grab from https://cran.r-project.org/web/packages/viridis/vignettes/intro-to-viridis.html
     colors = ['#440154', '#472f7d', '#3e6a8e', '#29918c',
               '#33b479', '#9fce25', '#fddc24', '#f6e812']
     index = int(normalized_score * (len(colors) - 1))
@@ -116,10 +115,7 @@ def create_viridis_color(normalized_score):
 def create_score_icon(score, max_score=10):
     """Generates an SVG string for a circular score meter with color."""
     normalized_score = max(0, min(1, score / max_score))
-
-    # Use Viridis-like color map for score
     progress_color = create_viridis_color(normalized_score)
-
     circumference = 2 * np.pi * 40
     stroke_dashoffset = circumference * (1 - normalized_score)
 
@@ -178,7 +174,7 @@ def create_score_legend():
     st.markdown("### AI Wave Quality Score Explained")
     st.markdown("This is a prediction of wave quality on a scale of 1-10. It is a beta feature trained on historical data and is constantly learning.")
 
-    # Gradient bar for the color scale
+    # the bar -- make gradient
     st.markdown(
         """
         <div style="
@@ -192,7 +188,7 @@ def create_score_legend():
         unsafe_allow_html=True
     )
 
-    # Labels for the qualitative scores
+    # qualitative scores
     col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
         st.markdown(
@@ -211,7 +207,7 @@ def create_score_legend():
             "<p style='font-size: 12px; text-align: center; color: #f6e812;'><b>10</b><br>(All time)</p>", unsafe_allow_html=True)
 
 
-# Main application title and description
+# title and description
 col_logo, col_title = st.columns([1, 10])
 with col_logo:
     st.image(image_to_base64(create_logo_svg()), width=60)
@@ -219,9 +215,8 @@ with col_title:
     st.title("Kookpy AI Surf Forecast")
     st.markdown("### Powered by the Open-Meteo API and TensorFlow")
 
-# --- User Input Section ---
+# USER INPUT SECTION
 st.markdown("---")
-# Tabs for different input methods
 tabs = st.tabs(["Search by Name", "Select from List"])
 
 with tabs[0]:
@@ -234,7 +229,7 @@ with tabs[0]:
             st.session_state.run_forecast = True
             st.session_state.beach_name = beach_name_input
 
-with tabs[1]:
+with tabs[1]: # this is dog, need to create a separate library somewhere yeeesh
     california_beaches = [
         "Huntington Beach", "Malibu", "Santa Cruz", "La Jolla", "Trestles",
         "Steamer Lane", "Rincon", "Newport Beach", "Pacifica State Beach", "Point Dume",
@@ -267,7 +262,7 @@ with tabs[1]:
         st.session_state.run_forecast = True
         st.session_state.beach_name = beach_name_select
 
-# --- Forecast and Prediction Display ---
+#Forecast and Prediction Display
 if "run_forecast" in st.session_state and st.session_state.run_forecast:
     with st.spinner(f"Fetching data and generating prediction for {st.session_state.beach_name}..."):
         # Get location coordinates first
@@ -277,7 +272,7 @@ if "run_forecast" in st.session_state and st.session_state.run_forecast:
             st.session_state.run_forecast = False
             st.stop()
 
-        # Fetch all data using the coordinates
+        # get data using the coordinates
         forecast_df = kookpy.get_surf_forecast_by_name(
             st.session_state.beach_name)
 
@@ -305,7 +300,7 @@ if "run_forecast" in st.session_state and st.session_state.run_forecast:
                 st.session_state.run_forecast = False
                 st.stop()
 
-            # Fetch tide data for the next 48 hours to find high/low tides
+            # get tide data for the next 48 hours to find high/low tides
             tide_data = kookpy.fetch_tide_data(coords['latitude'], coords['longitude'], datetime.now(
             ).date().strftime('%Y-%m-%d'), (datetime.now().date() + timedelta(days=2)).strftime('%Y-%m-%d'))
 
@@ -314,7 +309,7 @@ if "run_forecast" in st.session_state and st.session_state.run_forecast:
                 f"Forecast and prediction for {st.session_state.beach_name} ready.")
             st.markdown("---")
 
-            # --- Current Conditions Summary ---
+            # Current Conditions Summary
             st.subheader("Current Conditions")
             if not forecast_df.empty:
                 now_df = forecast_df.iloc[0]
@@ -384,7 +379,7 @@ if "run_forecast" in st.session_state and st.session_state.run_forecast:
                 showlegend=False
             ), row=1, col=1)
 
-            # Add vertical dashed lines for each day and date headers
+            # vertical dashed lines for each day and date headers, this is so broken but not high prio
             dates = pd.to_datetime(forecast_df['time']).dt.date.unique()
             for i, date in enumerate(dates):
                 date_str = date.strftime('%Y-%m-%d')
@@ -407,7 +402,7 @@ if "run_forecast" in st.session_state and st.session_state.run_forecast:
                         font=dict(color="#c9d1d9", size=16)
                     )
 
-            # --- Wind Speed Line Chart ---
+            # Wind Speed Line Chart
             fig.add_trace(go.Scatter(
                 x=forecast_df['time'],
                 y=forecast_df['wind_speed_10m'],
@@ -417,7 +412,7 @@ if "run_forecast" in st.session_state and st.session_state.run_forecast:
                 hovertemplate="<b>%{x|%b %d, %I:%M %p}</b><br>Wind Speed: %{y:.2f} km/h<extra></extra>"
             ), row=2, col=1)
 
-            # --- Tide Chart ---
+            # Tide Chart
             fig.add_trace(go.Scatter(
                 x=forecast_df['time'],
                 y=forecast_df['sea_level_height_msl'],

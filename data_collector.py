@@ -8,13 +8,18 @@ def calculate_heuristic_score(row):
     Calculates a heuristic wave quality score based on swell and wind data.
     - Higher swell_wave_height and swell_wave_period are better.
     - Lower wind_speed_10m is better.
+
+    TODO***: 1. API calling for high quality image data skeleton needed -- build out = normalize and structure pixel data here? ResNet160 = 160x160 boxes for waves? l,r,t,b [1,1,2,1]
+    TODO***: 2. Need high quality image data... find source
+    TODO***: 3. define and test CNN fusion layer for images (ResNet was looking best last check, try others)
+
+
     """
-    # Define weights for each feature
     height_weight = 0.5
     period_weight = 0.4
-    wind_weight = -0.1  # Negative weight for wind speed
+    wind_weight = -0.1
 
-    # Normalize values to a 0-10 scale for scoring
+    # this is the place holder until accessd to high quality data is granted
     normalized_height = min(row['swell_wave_height'], 3.0) / 3.0 * 10
     normalized_period = min(row['swell_wave_period'], 15.0) / 15.0 * 10
     normalized_wind = min(row['wind_speed_10m'], 30.0) / 30.0 * 10
@@ -23,7 +28,7 @@ def calculate_heuristic_score(row):
             (period_weight * normalized_period) + \
             (wind_weight * normalized_wind)
 
-    # Ensure the score is within a reasonable range
+    # check score
     score = max(1, min(10, score))
     return score
 
@@ -37,7 +42,7 @@ def collect_and_save_historical_data(location_name, start_date_str, end_date_str
         start_date_str (str): The start date in 'YYYY-MM-DD' format.
         end_date_str (str): The end date in 'YYYY-MM-DD' format.
     """
-    # Geocode the location to get coordinates
+    # gecodoe location analysis
     coords = kookpy.geocode_location(location_name)
     if not coords:
         print(f"Error: Could not find coordinates for {location_name}.")
@@ -54,13 +59,13 @@ def collect_and_save_historical_data(location_name, start_date_str, end_date_str
         print(f"Fetching data for {current_date_str}...")
 
         try:
-            # Fetch marine and wind data
+            # get marine data
             marine_data = kookpy.fetch_marine_data(
                 coords['latitude'], coords['longitude'], current_date_str, current_date_str)
             wind_data = kookpy.fetch_wind_data(
                 coords['latitude'], coords['longitude'], current_date_str, current_date_str)
 
-            # Ensure both dataframes are not empty and merge
+            # check empty and merge
             if not marine_data.empty and not wind_data.empty:
                 combined_df = pd.merge(
                     marine_data, wind_data, on='time', how='inner')
@@ -77,7 +82,7 @@ def collect_and_save_historical_data(location_name, start_date_str, end_date_str
 
     if all_data:
         full_df = pd.concat(all_data, ignore_index=True)
-        # Drop rows with any missing values before saving
+        #drop missing rows
         full_df.dropna(inplace=True)
 
         if not full_df.empty:
